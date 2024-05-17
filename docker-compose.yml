@@ -1,0 +1,43 @@
+version: '3.7'
+services:
+  web:
+    container_name: api_cdv
+    build:
+      context: set_you_path_application/api_cdv
+    restart: unless-stopped
+    volumes:
+      - set_you_path_application/api_cdv/public:/var/www/html
+      - set_you_path_application/api_cdv:/var/www
+      - set_you_path_application/api_cdv/vendor:/var/www/vendor
+      - set_you_path_application/api_cdv/data/tmp:/tmp
+      - set_you_path_application/api_cdv/data:/var/www/data
+      - set_you_path_application/api_cdv/data/log/docker:/var/log
+      - set_you_path_application/ftp:/var/ftp
+
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.apicdv.rule=Host(`api.cdv`)"
+
+    networks:
+      - frontend
+      - backend   
+  
+  mysql:
+    container_name: database
+    image: 'mysql:8.0'
+    working_dir: /application
+    volumes:
+      - '.:/application'
+    environment:
+      - MYSQL_ROOT_PASSWORD=PASSWORD_ROOT
+      - MYSQL_DATABASE=
+      - MYSQL_USER=
+      - MYSQL_PASSWORD=
+    ports:
+      - '25002:3306'
+
+networks:
+  frontend:
+    external: true 
+  backend:
+    external: true 
