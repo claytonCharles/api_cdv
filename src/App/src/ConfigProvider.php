@@ -21,7 +21,7 @@ class ConfigProvider
     {
         return [
             'dependencies' => $this->getDependencies(),
-            'templates'    => $this->getTemplates(),
+            'templates'    => [],
         ];
     }
 
@@ -31,26 +31,31 @@ class ConfigProvider
     public function getDependencies(): array
     {
         return [
-            'invokables' => [
-                Handler\PingHandler::class => Handler\PingHandler::class,
-            ],
-            'factories'  => [
-                Handler\HomePageHandler::class => Handler\HomePageHandlerFactory::class,
-            ],
+            'invokables' => [],
+            'factories'  => $this->getFactories(),
         ];
     }
 
     /**
-     * Returns the templates configuration
+     * Returns the factories configuration
+     * @return array
      */
-    public function getTemplates(): array
+    public function getFactories(): array
     {
-        return [
-            'paths' => [
-                'app'    => [__DIR__ . '/../templates/app'],
-                'error'  => [__DIR__ . '/../templates/error'],
-                'layout' => [__DIR__ . '/../templates/layout'],
-            ],
-        ];
+        $lstFactories = [];
+        $moduleName = basename(realpath(__DIR__ . "/../"));
+        $handlers = glob(__DIR__ . "/Handler/*");
+
+        foreach ($handlers as $handler) {
+            $handlerName = basename(realpath($handler));
+            $actions = glob($handler . "/*Handler.php");
+
+            foreach ($actions as $action) {
+                $actionName = basename(realpath($action), ".php");
+                $factoryName = str_replace("Handler", "Factory", $actionName);
+                $lstFactories["$moduleName\Handler\\$handlerName\\$actionName"] = "$moduleName\Handler\\$handlerName\\$factoryName";
+            }
+        }
+        return $lstFactories;
     }
 }
