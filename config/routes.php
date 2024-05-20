@@ -7,5 +7,5 @@ use Mezzio\MiddlewareFactory;
 use Psr\Container\ContainerInterface;
 
 return static function (Application $app, MiddlewareFactory $factory, ContainerInterface $container): void {
-    $app->get('/', App\Handler\Auth\AutenticarHandler::class, "login");
+    $app->post('/', App\Handler\Auth\AutenticarHandler::class, "login");
 };

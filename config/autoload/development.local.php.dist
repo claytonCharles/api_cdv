@@ -33,6 +33,16 @@ return [
         ],
     ],
     "db" => [
-        "driver" => "pdo_mysqli"
+        "driver" => "",
+        "host" => "",
+        "port" => "",
+        "database" => "",
+        "username" => "",
+        "password" => ""
+    ],
+    "jwt" => [
+        "validIssue" => "",
+        "validAudience" => "",
+        "key" => ""
     ],
 ];

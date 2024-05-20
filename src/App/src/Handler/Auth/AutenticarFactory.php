@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Handler\Auth;
 
-use Mezzio\Router\RouterInterface;
+use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
@@ -14,8 +14,8 @@ class AutenticarFactory
 {
     public function __invoke(ContainerInterface $container): RequestHandlerInterface
     {
-        $router = $container->get(RouterInterface::class);
-        assert($router instanceof RouterInterface);
-        return new AutenticarHandler($container::class, $router);
+        $adapter = $container->get(AdapterInterface::class);
+        $config  = $container->get("config");
+        return new AutenticarHandler($adapter, $config);
     }
 }
