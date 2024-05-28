@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Handler\Auth;
+namespace App\Handler\Usuario;
 
 use App\Entity\AutenticarEntity;
 use App\Model\AuthModel;
@@ -42,23 +42,22 @@ class AutenticarHandler implements RequestHandlerInterface
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        $dados = $request->getParsedBody();
+        $dados = $request->getParsedBody() ?? [];
         $view = ["result" => false, "flashMsg" => "Não foi possivel autenticar o usuário!"];
         if (!$this->validarFormulario($dados)) {
             $view["erros"] = $this->formulario->getMessages();
-            return new JsonResponse($view);
+            return new JsonResponse($view, 400);
         }
 
         $dadosLogin = $this->formulario->getData(FormInterface::VALUES_NORMALIZED);
-        $usuario = $this->authModel->autenticarUsuario($dadosLogin);
+        $usuario = $this->authModel->autenticarUsuario($dadosLogin, $this->config["jwt"]);
         if (empty($usuario)) {
             $view["flashMsg"] = "E-mail ou senha invalida.";
-            return new JsonResponse($view);
+            return new JsonResponse($view, 401);
         }
 
-        $usuario = $this->authModel->gerarTokenJwt($usuario, $this->config["jwt"]);
         $view = ["result" => true, "flashMsg" => "Usuário autenticado com sucesso!", "usuario" => $usuario];
-        return new JsonResponse([$view]);
+        return new JsonResponse($view);
     }
 
 

@@ -32,17 +32,4 @@ return [
             'ajax_only'  => true,
         ],
     ],
-    "db" => [
-        "driver" => "",
-        "host" => "",
-        "port" => "",
-        "database" => "",
-        "username" => "",
-        "password" => ""
-    ],
-    "jwt" => [
-        "validIssue" => "",
-        "validAudience" => "",
-        "key" => ""
-    ],
 ];

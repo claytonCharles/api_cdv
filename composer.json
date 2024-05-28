@@ -47,6 +47,7 @@
     "require": {
         "php": "~8.1.0 || ~8.2.0 || ~8.3.0",
         "composer/package-versions-deprecated": "^1.10.99",
+        "doctrine/migrations": "^3.7",
         "laminas/laminas-authentication": "^2.16",
         "laminas/laminas-component-installer": "^2.6 || ^3.0",
         "laminas/laminas-config-aggregator": "^1.6",
@@ -54,6 +55,7 @@
         "laminas/laminas-diactoros": "^3.0.0",
         "laminas/laminas-eventmanager": "^3.13",
         "laminas/laminas-form": "^3.19",
+        "laminas/laminas-i18n": "^2.26",
         "laminas/laminas-servicemanager": "^3.22",
         "laminas/laminas-session": "^2.20",
         "laminas/laminas-stdlib": "^3.6",
@@ -106,7 +108,8 @@
         "static-analysis": "psalm --stats",
         "static-analysis-update-baseline": "psalm --stats --update-baseline",
         "test": "phpunit --colors=always",
-        "test-coverage": "phpunit --colors=always --coverage-clover clover.xml"
+        "test-coverage": "phpunit --colors=always --coverage-clover clover.xml",
+        "migrations": "./vendor/bin/doctrine-migrations"
     },
     "scripts-descriptions": {
         "clear-config-cache": "Clears merged config cache. Required for config changes to be applied.",

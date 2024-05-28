@@ -2,7 +2,9 @@
 
 namespace App\Model;
 use App\Entity\AutenticarEntity;
+use App\Entity\CadastroUsuarioEntity;
 use App\Model\Mapper\AuthMapper;
+use DateTimeInterface;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Session\SessionManager;
 
@@ -18,15 +20,43 @@ class AuthModel
         $this->authMapper = new AuthMapper($adapter);
     }
 
+    
+    /**
+     * Cadastra o usuário ao sistema, e autentica o mesmo.
+     * @param CadastroUsuarioEntity $dadosUsuario
+     * @param array $configJwt
+     * @return string
+     */
+    public function cadastrarUsuario(CadastroUsuarioEntity $dadosUsuario, array $configJwt): string
+    {
+        $result = "";
+        $dados = (array)$dadosUsuario;
+        $dados["ds_senha"] = password_hash($dados["ds_senha"], PASSWORD_BCRYPT);
+        $dados["dt_registro"] = date("Y-m-d H:i:s");
+        $coUsuario = $this->authMapper->cadastrarUsuario($dados);
+        if (!$coUsuario) return $result;
+
+        $autenticarEntity = new AutenticarEntity();
+        $autenticarEntity->ds_email = $dados["ds_email"];
+        $autenticarEntity->ds_senha = $dadosUsuario->ds_senha;
+        $result = $this->autenticarUsuario($autenticarEntity, $configJwt);
+        return $result;
+    }
+
 
     /**
      * Autentica o usuário e trata os dados necessário.
      * @param AutenticarEntity $dadosLogin
-     * @return array
+     * @param array $configJwt
+     * @return string
      */
-    public function autenticarUsuario(AutenticarEntity $dadosLogin): array
+    public function autenticarUsuario(AutenticarEntity $dadosLogin, array $configJwt): string
     {
-        $result = $this->authMapper->autenticarUsuario((array)$dadosLogin);
+        $result = "";
+        $usuario = $this->authMapper->autenticarUsuario((array)$dadosLogin);
+        if (empty($usuario)) return $result;
+        
+        $result = $this->gerarTokenJwt($usuario, $configJwt);
         return $result;
     }
 
@@ -34,23 +64,23 @@ class AuthModel
     /**
      * Gera um token JWT para a autenticação do usuário desejado.
      * @param array $informacoesUsuario
-     * @param array $infosJwt
+     * @param array $configJwt
      * @return string
      */
-    public function gerarTokenJwt(array $informacoesUsuario, array $infosJwt): string
+    private function gerarTokenJwt(array $informacoesUsuario, array $configJwt): string
     {
         $session = new SessionManager();
-        $informacoesUsuario["sub"] = $this->codificarToken(json_encode($informacoesUsuario["co_users"] . "@" . $informacoesUsuario["email"]));
+        $informacoesUsuario["sub"] = $this->codificarToken(json_encode($informacoesUsuario["co_usuario"] . "@" . $informacoesUsuario["ds_email"]));
         $informacoesUsuario["iat"] = time();
         $informacoesUsuario["nbf"] = time();
         $informacoesUsuario["exp"] = time() + 3600;
         $informacoesUsuario["jti"] = $session->getId();
-        $informacoesUsuario["iss"] = $infosJwt["validIssue"];
-        $informacoesUsuario["aud"] = $infosJwt["validAudience"];
-        unset($informacoesUsuario["co_users"]);
+        $informacoesUsuario["iss"] = $configJwt["validIssue"];
+        $informacoesUsuario["aud"] = $configJwt["validAudience"];
+        unset($informacoesUsuario["co_usuario"]);
         $header = $this->codificarToken(json_encode(["type" => "at+JWT", "alg" => "HS256"]));
         $payload = $this->codificarToken(json_encode($informacoesUsuario));
-        $assinatura = $this->codificarAssinatura($header, $payload, $infosJwt["key"]);
+        $assinatura = $this->codificarAssinatura($header, $payload, $configJwt["key"]);
         return "$header.$payload.$assinatura";
     }
 
