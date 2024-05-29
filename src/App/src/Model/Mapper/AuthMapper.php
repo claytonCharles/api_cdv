@@ -74,4 +74,27 @@ class AuthMapper
 
         return $result;
     }
+
+
+    /**
+     * Resgata as informações do usuário de acordo com seu id
+     * @param int $coUsuario
+     * @return array
+     */
+    public function resgatarDadosUsuario(int $coUsuario): array
+    {
+        $result = [];
+        try {
+            $tbData = new TableGateway("tb_usuarios", $this->adapter);
+            $sql = $tbData->getSql()->select()
+                                    ->columns(["co_usuario", "ds_nome", "ds_email", "dt_registro", "st_ativo"])
+                                    ->where("co_usuario = $coUsuario");
+            $result = $tbData->selectWith($sql)->toArray();
+        } catch (Exception $error) {
+            //Cadastrar log do erro gerado.
+            var_dump($error->getMessage());exit; //Remover ao implementar o log.
+        }
+
+        return $result;
+    }
 }
