@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20240528144841 extends AbstractMigration
+final class Usuarios extends AbstractMigration
 {
     public function up(Schema $schema): void
     {
@@ -18,10 +18,12 @@ final class Version20240528144841 extends AbstractMigration
             'CREATE TABLE tb_usuarios (
                 co_usuario bigint auto_increment not null primary key, 
                 ds_nome varchar(100) not null, 
-                ds_email varchar(100) not null unique, 
-                ds_senha varchar(60) not null, 
-                dt_registro datetime not null default current_timestamp, 
-                st_ativo char(1) not null default "N"
+                ds_email varchar(100) not null unique,
+                ds_senha varchar(60) not null,
+                ds_recuperacao_senha varchar(60),
+                dt_registro datetime not null default current_timestamp,
+                st_ativo char(1) not null default "S",
+                st_email_validado char(1) not null default "N"
             );'
         );
     }
