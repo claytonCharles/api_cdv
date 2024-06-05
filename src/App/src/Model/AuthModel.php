@@ -12,7 +12,6 @@ use Laminas\Session\SessionManager;
 
 class AuthModel
 {
-
     /** @var AuthMapper */
     private $authMapper;
 
@@ -35,25 +34,26 @@ class AuthModel
      */
     public function cadastrarUsuario(CadastroUsuarioEntity $dadosUsuario, array $configJwt): string
     {
-        $result = "";
         $dados = (array)$dadosUsuario;
         $dados["ds_senha"] = password_hash($dados["ds_senha"], PASSWORD_BCRYPT);
         $dados["dt_registro"] = date("Y-m-d H:i:s");
         $coUsuario = $this->authMapper->cadastrarUsuario($dados);
         if (!$coUsuario) { 
-            return $result;
+            return "";
         }
 
         $autenticarEntity = new AutenticarEntity();
         $autenticarEntity->ds_email = $dados["ds_email"];
         $autenticarEntity->ds_senha = $dadosUsuario->ds_senha;
-        $result = $this->autenticarUsuario($autenticarEntity, $configJwt);
-        return $result;
+        return $this->autenticarUsuario($autenticarEntity, $configJwt);
     }
 
 
     /**
+     * Atualiza os dados do usuário desejado, e gera novos tokens atualizados.
      * @param AtualizarUsuarioEntity $dadosUsuario
+     * @param array $configJwt
+     * @return array
      */
     public function atualizarDadosUsuario(AtualizarUsuarioEntity $dadosUsuario, array $configJwt): array
     {
@@ -67,7 +67,6 @@ class AuthModel
         $dadosUsuario["dt_registro"] = date("Y-m-d H:i:s");
         if (isset($dadosUsuario["ds_senha"])) {
             $dadosUsuario["ds_senha"] = password_hash($dadosUsuario["ds_senha"], PASSWORD_BCRYPT);
-            //Logout
         }
 
         $atualizacao = $this->authMapper->atualizarDadosUsuario($usuarioArmazenado["co_usuario"], $dadosUsuario);
@@ -75,15 +74,13 @@ class AuthModel
             return $result;
         }
 
-
         $usuario = $this->authMapper->resgatarDadosUsuario($usuarioArmazenado["co_usuario"])[0];
         $this->sessionManager->regenerateId();
         (new Session(null, null, $this->sessionManager))->write($usuario);
-        $result = [ 
+        return [ 
             "usuario" => $this->gerarTokenJwt($usuario, $configJwt),
-            "rfToken" => $this->gerarRefreshToken()
+            "rfToken" => $this->gerarRefreshToken($configJwt)
         ];
-        return $result;
     }
 
 
@@ -95,15 +92,35 @@ class AuthModel
      */
     public function autenticarUsuario(AutenticarEntity $dadosLogin, array $configJwt): array
     {
-        $result = [];
         $usuario = $this->authMapper->autenticarUsuario((array)$dadosLogin);
-        if (empty($usuario)) return $result;
-        
-        $result = [ 
+        if (empty($usuario)) {
+            return [];
+        }
+
+        return [ 
             "usuario" => $this->gerarTokenJwt($usuario, $configJwt),
-            "rfToken" => $this->gerarRefreshToken()
+            "rfToken" => $this->gerarRefreshToken($configJwt)
         ];
-        return $result;
+    }
+
+    
+    /**
+     * Requisita a validação do refresh token, para a geração de um novo token de acesso.
+     * @param string $refreshToken
+     * @param array $configJwt
+     * @return array
+     */
+    public function gerarNovoTokenJwt(string $refreshToken, array $configJwt): array
+    {
+        $usuario = $this->validarRefreshToken($refreshToken, $configJwt);
+        if (empty($usuario)) {
+            return [];
+        }
+
+        return [
+            "usuario" => $this->gerarTokenJwt($usuario, $configJwt),
+            "rfToken" => $this->gerarRefreshToken($configJwt)
+        ];
     }
 
 
@@ -120,6 +137,7 @@ class AuthModel
         if (count($token) !== 3) {
             return $result;
         }
+
         [$header, $payload, $assinatura] = $token;
         if ($assinatura !== $this->codificarAssinatura($header, $payload, $configJwt["key"])) {
             return $result;
@@ -156,6 +174,59 @@ class AuthModel
         return $result;
     }
 
+
+    /**
+     * Valida se o token para re-autenticação está valido.
+     * @param string $refreshToken
+     * @param array $configJwt
+     * @return array
+     */
+    public function validarRefreshToken(string $refreshToken, array $configJwt): array
+    {
+        $result = [];
+        $token = explode(".", $refreshToken);
+        if (count($token) !== 3) {
+            return $result;
+        }
+
+        [$header, $payload, $assinatura] = $token;
+        if ($assinatura !== $this->codificarAssinatura($header, $payload, $configJwt["key"])) {
+            return $result;
+        }
+
+        try {
+            $infosToken = $this->decodificarToken($payload);
+            $this->sessionManager->setId($infosToken["sid"]);
+            $session = new Session(null, null, $this->sessionManager);
+            $audiencia = $infosToken["aud"] === $configJwt["validAudience"];
+            $issue = $infosToken["iss"] === $configJwt["validIssue"];
+            if (!$issue || !$audiencia || !$this->sessionManager->sessionExists() || $session->isEmpty()) {
+                $session->isEmpty() && $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
+                return $result;
+            }
+
+            [$nome, $email, $extensao] = explode("@", $this->decodificarToken($infosToken["sub"])["user"]);
+            $dadosArmazenados = $session->read();
+            $dadosArmazenados["ds_nome"] = $nome;
+            $dadosArmazenados["ds_email"] = "$email@$extensao";
+            $rtid = $dadosArmazenados["rtid"] === $infosToken["rtid"];
+            unset($dadosArmazenados["rtid"]);
+            $dadosReais = $this->authMapper->resgatarDadosUsuario($dadosArmazenados["co_usuario"])[0] ?? [];
+            if ($dadosArmazenados !== $dadosReais || empty($dadosReais) || !$rtid) {
+                $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
+                return $result;
+            }
+
+            $result = $dadosReais;
+        } catch (Exception $error) {
+            //Cadastrar log do erro gerado.
+            $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
+            var_dump($error->getMessage());exit;
+        }
+
+        return $result;
+    }
+
     
     /**
      * Gera um token JWT para a autenticação do usuário desejado.
@@ -182,20 +253,26 @@ class AuthModel
 
     /**
      * Gerar um token para servir de re-autenticação do usuário.
+     * @param array $configJwt
      * @return string
      */
-    private function gerarRefreshToken(): string
+    private function gerarRefreshToken(array $configJwt): string
     {
         $session = new Session(null, null, $this->sessionManager);
         $informacoesUsuario = $session->read();
         $informacoesUsuario["rtid"] = uniqid() . "_" . time();
         $session->write($informacoesUsuario);
         $token = [
-            "sub" => $this->codificarToken(json_encode(["user" => $informacoesUsuario["ds_nome"] . "@" . $informacoesUsuario["ds_email"]])),
-            "sid" => $this->sessionManager->getId(),
-            "rtid" => $informacoesUsuario["rtid"]
+            "sub"  => $this->codificarToken(json_encode(["user" => $informacoesUsuario["ds_nome"] . "@" . $informacoesUsuario["ds_email"]])),
+            "sid"  => $this->sessionManager->getId(),
+            "rtid" => $informacoesUsuario["rtid"],
+            "iss"  => $configJwt["validIssue"],
+            "aud"  => $configJwt["validAudience"]
         ];
-        return $this->codificarToken(json_encode($token));
+        $header = $this->codificarToken(json_encode(["type" => "rt+JWT", "alg" => "HS256"]));
+        $payload = $this->codificarToken(json_encode($token));
+        $assinatura = $this->codificarAssinatura($header, $payload, $configJwt["key"]);
+        return "$header.$payload.$assinatura";
     }
 
 
