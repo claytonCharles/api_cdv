@@ -8,12 +8,12 @@ use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-class RefreshTokenFactory
+class DeslogarFactory
 {
     public function __invoke(ContainerInterface $container): RequestHandlerInterface
     {
         $adapter = $container->get(AdapterInterface::class);
         $config  = $container->get("config");
-        return new RefreshTokenHandler($adapter, $config);
+        return new DeslogarHandler($adapter, $config);
     }
 }

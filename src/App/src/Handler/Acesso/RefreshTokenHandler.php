@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Handler\Usuario;
+namespace App\Handler\Acesso;
 
 use App\Model\AuthModel;
 use Laminas\Db\Adapter\AdapterInterface;

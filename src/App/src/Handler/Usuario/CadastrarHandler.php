@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Handler\Usuario;
 
-use App\Entity\AutenticarEntity;
 use App\Entity\CadastroUsuarioEntity;
-use App\Model\AuthModel;
+use App\Model\UsuarioModel;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Diactoros\Response\JsonResponse;
 use Laminas\Form\Form;
@@ -29,8 +28,8 @@ class CadastrarHandler implements RequestHandlerInterface
     /** @var Form */
     public $formulario;
 
-    /** @var AuthModel */
-    public $authModel;
+    /** @var UsuarioModel */
+    public $usuarioModel;
 
     public function __construct(
         public AdapterInterface $adapter,
@@ -39,7 +38,7 @@ class CadastrarHandler implements RequestHandlerInterface
         $this->attributeBuilder = new AttributeBuilder();
         $this->cadastroUsuarioEntity = new CadastroUsuarioEntity();
         $this->formulario = $this->attributeBuilder->createForm($this->cadastroUsuarioEntity);
-        $this->authModel = new AuthModel($adapter);
+        $this->usuarioModel = new UsuarioModel($adapter);
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -52,7 +51,7 @@ class CadastrarHandler implements RequestHandlerInterface
         }
 
         $dadosUsuario = $this->formulario->getData(FormInterface::VALUES_NORMALIZED);
-        $usuario = $this->authModel->cadastrarUsuario($dadosUsuario, $this->config["jwt"]);
+        $usuario = $this->usuarioModel->cadastrarUsuario($dadosUsuario, $this->config["jwt"]);
         if (empty($usuario)) {
             return new JsonResponse($view, 401);
         }

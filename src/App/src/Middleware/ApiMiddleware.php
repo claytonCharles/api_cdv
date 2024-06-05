@@ -68,7 +68,7 @@ class ApiMiddleware implements MiddlewareInterface
         $this->acl->addRole("comum");
         $this->acl->addRole("premium", "comum");
         
-        $this->acl->allow(["comum"], ["app:usuario"], ["atualizar"]);
+        $this->acl->allow(["comum"], ["app:usuario"], ["atualizar", "deslogar", "desativar"]);
     }
 
 

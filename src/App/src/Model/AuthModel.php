@@ -1,10 +1,10 @@
 <?php
 
 namespace App\Model;
-use App\Entity\AtualizarUsuarioEntity;
+
 use App\Entity\AutenticarEntity;
-use App\Entity\CadastroUsuarioEntity;
 use App\Model\Mapper\AuthMapper;
+use App\Model\Mapper\UsuarioMapper;
 use Exception;
 use Laminas\Authentication\Storage\Session;
 use Laminas\Db\Adapter\AdapterInterface;
@@ -12,6 +12,9 @@ use Laminas\Session\SessionManager;
 
 class AuthModel
 {
+    /** @var UsuarioMapper */
+    private $usuarioMapper;
+
     /** @var AuthMapper */
     private $authMapper;
 
@@ -22,68 +25,11 @@ class AuthModel
         public AdapterInterface $adapter
     ) {
         $this->authMapper = new AuthMapper($adapter);
+        $this->usuarioMapper = new UsuarioMapper($adapter);
         $this->sessionManager = new SessionManager();
     }
 
     
-    /**
-     * Cadastra o usuário ao sistema, e autentica o mesmo.
-     * @param CadastroUsuarioEntity $dadosUsuario
-     * @param array $configJwt
-     * @return string
-     */
-    public function cadastrarUsuario(CadastroUsuarioEntity $dadosUsuario, array $configJwt): string
-    {
-        $dados = (array)$dadosUsuario;
-        $dados["ds_senha"] = password_hash($dados["ds_senha"], PASSWORD_BCRYPT);
-        $dados["dt_registro"] = date("Y-m-d H:i:s");
-        $coUsuario = $this->authMapper->cadastrarUsuario($dados);
-        if (!$coUsuario) { 
-            return "";
-        }
-
-        $autenticarEntity = new AutenticarEntity();
-        $autenticarEntity->ds_email = $dados["ds_email"];
-        $autenticarEntity->ds_senha = $dadosUsuario->ds_senha;
-        return $this->autenticarUsuario($autenticarEntity, $configJwt);
-    }
-
-
-    /**
-     * Atualiza os dados do usuário desejado, e gera novos tokens atualizados.
-     * @param AtualizarUsuarioEntity $dadosUsuario
-     * @param array $configJwt
-     * @return array
-     */
-    public function atualizarDadosUsuario(AtualizarUsuarioEntity $dadosUsuario, array $configJwt): array
-    {
-        $result = [];
-        $usuarioArmazenado = (new Session(null, null, $this->sessionManager))->read();
-        $dadosUsuario = array_filter((array)$dadosUsuario);
-        if (empty($dadosUsuario)) {
-            return $result;
-        }
-
-        $dadosUsuario["dt_registro"] = date("Y-m-d H:i:s");
-        if (isset($dadosUsuario["ds_senha"])) {
-            $dadosUsuario["ds_senha"] = password_hash($dadosUsuario["ds_senha"], PASSWORD_BCRYPT);
-        }
-
-        $atualizacao = $this->authMapper->atualizarDadosUsuario($usuarioArmazenado["co_usuario"], $dadosUsuario);
-        if (!$atualizacao) {
-            return $result;
-        }
-
-        $usuario = $this->authMapper->resgatarDadosUsuario($usuarioArmazenado["co_usuario"])[0];
-        $this->sessionManager->regenerateId();
-        (new Session(null, null, $this->sessionManager))->write($usuario);
-        return [ 
-            "usuario" => $this->gerarTokenJwt($usuario, $configJwt),
-            "rfToken" => $this->gerarRefreshToken($configJwt)
-        ];
-    }
-
-
     /**
      * Autentica o usuário e trata os dados necessário.
      * @param AutenticarEntity $dadosLogin
@@ -159,7 +105,7 @@ class AuthModel
             $dadosArmazenados = $session->read();
             $dadosArmazenados["ds_email"] = $email . "@$extensao";
             unset($dadosArmazenados["rtid"]);
-            $dadosReais = $this->authMapper->resgatarDadosUsuario($coUsuario)[0] ?? [];
+            $dadosReais = $this->usuarioMapper->resgatarDadosUsuario($coUsuario)[0] ?? [];
             if ($dadosArmazenados !== $dadosReais || empty($dadosReais)) {
                 return $result;
             }
@@ -211,7 +157,7 @@ class AuthModel
             $dadosArmazenados["ds_email"] = "$email@$extensao";
             $rtid = $dadosArmazenados["rtid"] === $infosToken["rtid"];
             unset($dadosArmazenados["rtid"]);
-            $dadosReais = $this->authMapper->resgatarDadosUsuario($dadosArmazenados["co_usuario"])[0] ?? [];
+            $dadosReais = $this->usuarioMapper->resgatarDadosUsuario($dadosArmazenados["co_usuario"])[0] ?? [];
             if ($dadosArmazenados !== $dadosReais || empty($dadosReais) || !$rtid) {
                 $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
                 return $result;
@@ -234,7 +180,7 @@ class AuthModel
      * @param array $configJwt
      * @return string
      */
-    private function gerarTokenJwt(array $informacoesUsuario, array $configJwt): string
+    public function gerarTokenJwt(array $informacoesUsuario, array $configJwt): string
     {
         $informacoesUsuario["sub"] = $this->codificarToken(json_encode(["id" => $informacoesUsuario["co_usuario"] . "@" . $informacoesUsuario["ds_email"]]));
         $informacoesUsuario["iat"] = time();
@@ -256,7 +202,7 @@ class AuthModel
      * @param array $configJwt
      * @return string
      */
-    private function gerarRefreshToken(array $configJwt): string
+    public function gerarRefreshToken(array $configJwt): string
     {
         $session = new Session(null, null, $this->sessionManager);
         $informacoesUsuario = $session->read();
