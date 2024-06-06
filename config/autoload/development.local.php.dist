@@ -32,7 +32,4 @@ return [
             'ajax_only'  => true,
         ],
     ],
-    "db" => [
-        "driver" => "pdo_mysqli"
-    ],
 ];

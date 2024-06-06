@@ -1,3 +1,5 @@
+setEnv APP_AMBIENTE dev
+
 RewriteEngine On
 # The following rule allows authentication to work with fast-cgi
 RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
