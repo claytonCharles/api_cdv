@@ -10,6 +10,9 @@ jobs:
     steps:
     - name: 🚚 Get latest code
       uses: actions/checkout@v4
+      with:
+        lfs: true
+        fetch-depth: 0
 
     - name: 🔨 Build Project
       run: |
@@ -18,9 +21,11 @@ jobs:
         composer update
     
     - name: 📂 Sync files
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      uses: SamKirkland/FTP-Deploy-Action@v4.1.0
       with:
         server: ${{ secrets.ftp_host }}
         username: ${{ secrets.ftp_username }}
         password: ${{ secrets.ftp_password }}
         server-dir: public_html/api_cdv/
+        protocol: ftps
+        log-level: verbose
