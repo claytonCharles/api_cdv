@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace AppTest\Handler\Acesso;
+
+use App\Handler\Usuario\DesativarFactory;
+use App\Handler\Usuario\DesativarHandler;
+use AppTest\InMemoryContainer;
+use Laminas\Db\Adapter\Adapter;
+use Laminas\Db\Adapter\AdapterInterface;
+use Laminas\Diactoros\Response\JsonResponse;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ServerRequestInterface;
+
+class DesativarHandlerTest extends TestCase
+{
+    /** @var InMemoryContainer&MockObject */
+    protected $container;
+
+    protected function setUp(): void
+    {
+        $this->container = new InMemoryContainer();
+        $this->container->setService(AdapterInterface::class, self::createMock(Adapter::class));
+        $this->container->setService('config', []);
+    }
+
+    public function testeJsonResponseComFormularioIncorreto(): void
+    {
+        $desativarHandler = (new DesativarFactory())($this->container);
+        $response = $desativarHandler->handle(
+            self::createMock(ServerRequestInterface::class)
+        );
+
+        $jsonRespose = json_decode($response->getBody()->getContents());
+        self::assertInstanceOf(DesativarHandler::class, $desativarHandler);
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertIsObject($jsonRespose);
+        self::assertObjectHasProperty("result", $jsonRespose);
+        self::assertEquals(true, $jsonRespose->result);
+    }
+}

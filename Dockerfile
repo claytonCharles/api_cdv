@@ -22,3 +22,5 @@ RUN curl -sS https://getcomposer.org/installer | php
 RUN mv composer.phar /usr/local/bin/composer
 
 COPY ./ /var/www/
+
+RUN composer update
