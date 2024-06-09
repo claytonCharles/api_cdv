@@ -24,3 +24,5 @@ jobs:
         username: ${{ secrets.ftp_username }}
         password: ${{ secrets.ftp_password }}
         server-dir: public_html/api_cdv/
+        protocol: ftps
+        log-level: verbose
