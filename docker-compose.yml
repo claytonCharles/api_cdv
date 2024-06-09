@@ -1,5 +1,19 @@
 version: '3.7'
 services:
+  reverse-proxy:
+    container_name: traefik
+    image: traefik:v2.0
+    restart: unless-stopped    
+    command: --api.insecure=true --providers.docker
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - frontend
+      - backend
+
   web:
     container_name: api_cdv
     build:
