@@ -5,6 +5,7 @@ namespace App\Model;
 use App\Entity\AutenticarEntity;
 use App\Model\Mapper\AuthMapper;
 use App\Model\Mapper\UsuarioMapper;
+use App\Utils\SalvarLog;
 use Exception;
 use Laminas\Authentication\Storage\Session;
 use Laminas\Db\Adapter\AdapterInterface;
@@ -20,6 +21,9 @@ class AuthModel
 
     /** @var SessionManager */
     private $sessionManager;
+    
+    /** @var SalvarLog */
+    public $logger;
 
     public function __construct(
         public AdapterInterface $adapter
@@ -27,6 +31,7 @@ class AuthModel
         $this->authMapper = new AuthMapper($adapter);
         $this->usuarioMapper = new UsuarioMapper($adapter);
         $this->sessionManager = new SessionManager();
+        $this->logger = new SalvarLog($adapter);
     }
 
     
@@ -112,9 +117,8 @@ class AuthModel
 
             $result = $dadosUsuario;
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
+            $this->logger->error("Não foi possível validar o usuário devido ao erro: {$error->getMessage()}");
             $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
-            var_dump($error->getMessage());exit;
         }
 
         return $result;
@@ -165,9 +169,8 @@ class AuthModel
 
             $result = $dadosReais;
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
+            $this->logger->error("Não foi possível re-autenticar o usuário devido ao erro: {$error->getMessage()}");
             $this->sessionManager->destroy(["clear_storage" => true, "send_expire_cookie" => false]);
-            var_dump($error->getMessage());exit;
         }
 
         return $result;

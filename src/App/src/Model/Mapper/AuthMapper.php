@@ -2,6 +2,7 @@
 
 namespace App\Model\Mapper;
 
+use App\Utils\SalvarLog;
 use Exception;
 use Laminas\Authentication\Adapter\DbTable\CallbackCheckAdapter;
 use Laminas\Authentication\AuthenticationService;
@@ -14,10 +15,14 @@ class AuthMapper
     /** @var UsuarioMapper */
     private $usuarioMapper;
 
+    /** @var SalvarLog */
+    public $logger;
+
     public function __construct(
         private AdapterInterface $adapter
     ) {
         $this->usuarioMapper = new UsuarioMapper($adapter);
+        $this->logger = new SalvarLog($adapter);
     }
 
 
@@ -29,7 +34,7 @@ class AuthMapper
     public function autenticarUsuario(array $dadosLogin): array
     {
         $result = [];
-        
+
         try {
             $validarSenha = fn($hash, $senha) => password_verify($senha, $hash);
             $auth = new AuthenticationService();
@@ -48,10 +53,9 @@ class AuthMapper
             $usuario = $this->usuarioMapper->resgatarDadosUsuario($coUsuario)[0];
             $auth->getStorage()->write($usuario);
             $result = $usuario;
-            // Cadastrar log de usuário autenticado.
+            $this->logger->info("Usuário de código '{$usuario["co_usuario"]}' e nome '{$usuario["ds_nome"]}' acaba se acessar o sistema!");
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
-            var_dump($error->getMessage());exit; //Remover ao implementar o log.
+            $this->logger->error("Não foi possível autenticar o usuário devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
@@ -74,12 +78,11 @@ class AuthMapper
                 $infosPermissao["co_permissao"] = 1;
             }
 
-            $tbData = new TableGateway("tb_grupo", $this->adapter);
+            $tbData = new TableGateway("tb_grupos", $this->adapter);
             $tbData->insert($infosPermissao);
             $result = true;
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
-            var_dump($error->getMessage());exit; //Remover ao implementar o log.
+            $this->logger->error("Não foi possível Alocar as permissões do Usuário devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
@@ -98,8 +101,7 @@ class AuthMapper
             $sql->where("st_ativo = 'S'");
             $result = $tbData->selectWith($sql)->toArray();
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
-            var_dump($error->getMessage());exit; //Remover ao implementar o log.
+            $this->logger->error("Não foi possível resgatar as permissões do sistema devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
