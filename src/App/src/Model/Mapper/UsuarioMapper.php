@@ -2,17 +2,21 @@
 
 namespace App\Model\Mapper;
 
+use App\Utils\SalvarLog;
 use Exception;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Db\Sql\Select;
 use Laminas\Db\TableGateway\TableGateway;
-use Laminas\Session\SessionManager;
 
 class UsuarioMapper
-{
+{   
+    /** @var SalvarLog */
+    public $logger;
+
     public function __construct(
         private AdapterInterface $adapter
     ) {
+        $this->logger = new SalvarLog($adapter);
     }
 
         
@@ -29,8 +33,7 @@ class UsuarioMapper
             $tbData->insert($dadosUsuario);
             $result = $tbData->getLastInsertValue();
         } catch (Exception $error) {
-            // Cadastrar log de erro
-            var_dump($error->getMessage()); //Remover ao implementar o log
+            $this->logger->error("Não foi possível cadastrar o usuário devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
@@ -50,8 +53,7 @@ class UsuarioMapper
             $tbData->update($dadosUsuario, "co_usuario = $coUsuario");
             $result = true;
         } catch (Exception $error) {
-            // Cadastrar log de erro
-            var_dump($error->getMessage()); //Remover ao implementar o log
+            $this->logger->error("Não foi atualizar os dados do usuário $coUsuario devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
@@ -70,13 +72,12 @@ class UsuarioMapper
             $tbData = new TableGateway("tb_usuarios", $this->adapter);
             $sql = $tbData->getSql()->select()
                                     ->columns(["co_usuario", "ds_nome", "ds_email", "dt_registro", "st_email_validado"])
-                                    ->join("tb_grupo", "tb_grupo.co_usuario = tb_usuarios.co_usuario", ["dt_registro_permissao" => "dt_registro", "dt_limite_permissao" => "dt_limite"], Select::JOIN_LEFT)
-                                    ->join("tb_permissoes", "tb_permissoes.co_permissao = tb_grupo.co_permissao", ["tp_permissao" => "ds_nome"], Select::JOIN_LEFT)
+                                    ->join("tb_grupos", "tb_grupos.co_usuario = tb_usuarios.co_usuario", ["dt_registro_permissao" => "dt_registro", "dt_limite_permissao" => "dt_limite"], Select::JOIN_LEFT)
+                                    ->join("tb_permissoes", "tb_permissoes.co_permissao = tb_grupos.co_permissao", ["tp_permissao" => "ds_nome"], Select::JOIN_LEFT)
                                     ->where("tb_usuarios.co_usuario = $coUsuario AND tb_usuarios.st_ativo = 'S'");
             $result = $tbData->selectWith($sql)->toArray();
         } catch (Exception $error) {
-            //Cadastrar log do erro gerado.
-            var_dump($error->getMessage());exit; //Remover ao implementar o log.
+            $this->logger->error("Não foi possível resgatar os dados do usuário $coUsuario devido ao erro: {$error->getMessage()}");
         }
 
         return $result;
